@@ -26,22 +26,6 @@ func beatString(beat, beats int) string {
 }
 
 func main() {
-	keysEvents, err := keyboard.GetKeys(10)
-	if err != nil {
-		panic(err)
-	}
-	defer func() {
-		_ = keyboard.Close()
-	}()
-	go func() {
-		for {
-			keyEvent := <-keysEvents
-			if keyEvent.Key == keyboard.KeyEsc {
-				fmt.Println("Exiting, ESC recieved")
-				os.Exit(0)
-			}
-		}
-	}()
 	fname := flag.String("f", "samples/tabla_te2.flac", "file")
 	tempo := flag.Float64("t", 120, "tempo")
 	beats := flag.Int("b", 4, "beats")
@@ -58,28 +42,33 @@ func main() {
 	buffer := beep.NewBuffer(format)
 	buffer.Append(streamer)
 	streamer.Close()
+	keysEvents, err := keyboard.GetKeys(10)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = keyboard.Close()
+	}()
+	go func() {
+		for {
+			keyEvent := <-keysEvents
+			if keyEvent.Rune == 'q' {
+				fmt.Print("\r")
+				os.Exit(0)
+			}
+		}
+	}()
 	for {
-		// char, key, err := keyboard.GetKey()
-		// if err != nil {
-		// 	panic(err)
-		// }
-		// fmt.Println(key, char)
-		// if key == keyboard.KeyEsc {
-		// 	break
-		// } else if key == keyboard.KeySpace {
 		c := time.Tick(time.Duration(60.0 / *tempo * 1000000000.0) * time.Nanosecond)
 		currentBeat := 0
-		s := time.Now()
-		for tick := range c {
+		for range c {
 			beat := buffer.Streamer(0, buffer.Len())
 			go func() {
 				speaker.Play(beat)
-				fmt.Printf("\r%s at %s", beatString(currentBeat, *beats), tick)
+				fmt.Printf("\r%s", beatString(currentBeat, *beats))
 				currentBeat++
 				currentBeat %= *beats
-				fmt.Printf("delay: %s", time.Now().Sub(s))
 			}()
 		}
-		// }
 	}
 }
