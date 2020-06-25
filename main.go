@@ -13,13 +13,13 @@ import (
 	"time"
 )
 
-func beatString(beat, beats int) string {
+func beatString(beat, beats int, on, off string) string {
 	s := make([]string, beats)
 	for i := 0; i < beats; i++ {
 		if i == beat {
-			s[i] = "🔴"
+			s[i] = on
 		} else {
-			s[i] = "⭕"
+			s[i] = off
 		}
 	}
 	return strings.Join(s, "")
@@ -35,6 +35,8 @@ func main() {
 	fname := flag.String("f", "samples/tabla_te2.flac", "file")
 	tempo := flag.Int("t", 120, "tempo")
 	beats := flag.Int("b", 4, "beats")
+	onSymbol := flag.String("o", "🔴", "Symbol for current beat")
+	offSymbol := flag.String("O", "⭕", "Symbol for all other beats")
 	flag.Parse()
 	f, err := os.Open(*fname)
 	if err != nil {
@@ -70,12 +72,12 @@ func main() {
 	for {
 		c := time.Tick(time.Duration(60000 / *tempo) * time.Millisecond)
 		currentBeat := 0
-		fmt.Printf("\r%s", beatString(currentBeat, *beats))
+		fmt.Printf("\r%s", beatString(currentBeat, *beats, *onSymbol, *offSymbol))
 		currentBeat++
 		currentBeat %= *beats
 		for range c {
 			go func() {
-				fmt.Printf("\r%s", beatString(currentBeat, *beats))
+				fmt.Printf("\r%s", beatString(currentBeat, *beats, *onSymbol, *offSymbol))
 				currentBeat++
 				currentBeat %= *beats
 			}()
