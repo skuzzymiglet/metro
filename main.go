@@ -7,6 +7,8 @@ import (
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/flac"
 	"github.com/faiface/beep/speaker"
+	"github.com/markbates/pkger"
+
 	"log"
 	"os"
 	"strings"
@@ -32,13 +34,15 @@ func toTempo(s beep.StreamSeeker, f beep.Format, tempo int) *beep.Resampler {
 }
 
 func main() {
-	fname := flag.String("f", "samples/tabla_te2.flac", "file")
+	pkger.Include("/samples/tabla_te2.flac")
+
+	fname := flag.String("f", "/samples/tabla_te2.flac", "file")
 	tempo := flag.Int("t", 120, "tempo")
 	beats := flag.Int("b", 4, "beats")
 	onSymbol := flag.String("o", "🔴", "Symbol for current beat")
 	offSymbol := flag.String("O", "⭕", "Symbol for all other beats")
 	flag.Parse()
-	f, err := os.Open(*fname)
+	f, err := pkger.Open(*fname)
 	if err != nil {
 		log.Fatal(err)
 	}
