@@ -25,9 +25,15 @@ func beatString(beat, beats int) string {
 	return strings.Join(s, "")
 }
 
+func toTempo(s beep.StreamSeeker, f beep.Format, tempo int) *beep.Resampler {
+	ratio := float64(s.Len()) / float64(f.SampleRate.N(time.Duration(60000/tempo)*time.Millisecond))
+	return beep.ResampleRatio(1, ratio, s)
+	// return beep.ResampleRatio(2, , s)
+}
+
 func main() {
 	fname := flag.String("f", "samples/tabla_te2.flac", "file")
-	tempo := flag.Float64("t", 120, "tempo")
+	tempo := flag.Int("t", 120, "tempo")
 	beats := flag.Int("b", 4, "beats")
 	flag.Parse()
 	f, err := os.Open(*fname)
@@ -38,10 +44,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	defer streamer.Close()
 	buffer := beep.NewBuffer(format)
-	buffer.Append(streamer)
-	streamer.Close()
+	toAppend := toTempo(streamer, format, *tempo)
+	buffer.Append(toAppend)
+	loop := beep.Loop(-1, buffer.Streamer(0, buffer.Len()))
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 	keysEvents, err := keyboard.GetKeys(10)
 	if err != nil {
 		panic(err)
@@ -58,13 +66,15 @@ func main() {
 			}
 		}
 	}()
+	go speaker.Play(beep.Seq(loop))
 	for {
-		c := time.Tick(time.Duration(60.0 / *tempo * 1000000000.0) * time.Nanosecond)
+		c := time.Tick(time.Duration(60000 / *tempo) * time.Millisecond)
 		currentBeat := 0
+		fmt.Printf("\r%s", beatString(currentBeat, *beats))
+		currentBeat++
+		currentBeat %= *beats
 		for range c {
-			beat := buffer.Streamer(0, buffer.Len())
 			go func() {
-				speaker.Play(beat)
 				fmt.Printf("\r%s", beatString(currentBeat, *beats))
 				currentBeat++
 				currentBeat %= *beats
