@@ -25,6 +25,7 @@ _Subject to change_
 + Adjust number of bars played
 + Tapping the tempo
 + Set strong and weak beats
++ Sample lasts for 1 bar (i.e. loops)
 + Change tempo for some bars
 + Italian tempo names
 + Cut/pad **as well as** resampling
