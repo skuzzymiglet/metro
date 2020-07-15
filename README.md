@@ -1,19 +1,6 @@
 # metro - terminal metronome
 
 Terminal metronome, written in Go.
-Prints status on 1 line, using filled/hollow emojis.
-Uses Sonic Pi's collection of samples.
-
-## Usage
-
-```
--b int
-    beats (default 4)
--f string
-    file (default "samples/tabla_te2.flac")
--t int
-    tempo (default 120)
-```
 
 ## Planned features
 
