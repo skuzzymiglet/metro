@@ -1,12 +1,15 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
-
-	"errors"
+	"log"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/eiannone/keyboard"
 	"github.com/faiface/beep"
@@ -16,11 +19,6 @@ import (
 	"github.com/faiface/beep/vorbis"
 	"github.com/faiface/beep/wav"
 	"github.com/markbates/pkger"
-
-	"log"
-	"os"
-	"strings"
-	"time"
 )
 
 func beatString(beat, beats int, on, off string) string {
@@ -38,14 +36,12 @@ func beatString(beat, beats int, on, off string) string {
 func toTempo(s beep.StreamSeeker, f beep.Format, tempo int) *beep.Resampler {
 	ratio := float64(s.Len()) / float64(f.SampleRate.N(time.Duration(60000/tempo)*time.Millisecond))
 	return beep.ResampleRatio(1, ratio, s)
-	// return beep.ResampleRatio(2, , s)
 }
 
 func getFile(name string) (io.ReadSeeker, error) {
 	var f io.ReadSeeker
 	var err error
 	if _, err := pkger.Stat(name); err == nil {
-		fmt.Printf("Playing embedded sample %s\n", name)
 		f, err = pkger.Open(name)
 	} else {
 		f, err = os.Open(name)
@@ -62,24 +58,20 @@ func getStreamer(r io.ReadSeeker) (beep.StreamSeekCloser, beep.Format, error) {
 	nopcloser := ioutil.NopCloser(r)
 	r.Seek(0, 0)
 	streamer, format, err := flac.Decode(nopcloser)
-	fmt.Println("type flac")
 	if err == nil {
 		return streamer, format, err
 	}
 	r.Seek(0, 0)
 	streamer, format, err = mp3.Decode(nopcloser)
-	fmt.Println("type mp3")
 	if err == nil {
 		return streamer, format, err
 	}
 	r.Seek(0, 0)
 	streamer, format, err = wav.Decode(nopcloser)
-	fmt.Println("type wav")
 	if err == nil {
 		return streamer, format, err
 	}
 	streamer, format, err = vorbis.Decode(nopcloser)
-	fmt.Println("type vorbis")
 	if err == nil {
 		return streamer, format, err
 	}
@@ -87,30 +79,18 @@ func getStreamer(r io.ReadSeeker) (beep.StreamSeekCloser, beep.Format, error) {
 }
 
 func main() {
+	// Embed default sample
 	pkger.Include("/samples/tabla_te_m.flac")
 
+	// Parse flags
 	fname := flag.String("f", "/samples/tabla_te_m.flac", "file")
 	tempo := flag.Int("t", 120, "tempo")
 	beats := flag.Int("b", 4, "beats")
-	onSymbol := flag.String("o", "🔴", "Symbol for current beat")
-	offSymbol := flag.String("O", "⭕", "Symbol for all other beats")
+	on := flag.String("o", "🔴", "Symbol for current beat")
+	off := flag.String("O", "⭕", "Symbol for all other beats")
 	flag.Parse()
 
-	reader, err := getFile(*fname)
-	if err != nil {
-		log.Fatal(err)
-	}
-	streamer, format, err := getStreamer(reader)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	buffer := beep.NewBuffer(format)
-	toAppend := toTempo(streamer, format, *tempo)
-	buffer.Append(toAppend)
-	streamer.Close()
-	loop := beep.Loop(-1, buffer.Streamer(0, buffer.Len()))
-	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	// Listen on keyboard
 	keysEvents, err := keyboard.GetKeys(10)
 	if err != nil {
 		panic(err)
@@ -127,18 +107,45 @@ func main() {
 			}
 		}
 	}()
+
+	// Read file/embedded
+	reader, err := getFile(*fname)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Decode it
+	streamer, format, err := getStreamer(reader)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create a buffer for looping
+	buffer := beep.NewBuffer(format)
+	// Adjust to tempo
+	resampled := toTempo(streamer, format, *tempo)
+	buffer.Append(resampled)
+
+	streamer.Close()
+
+	loop := beep.Loop(-1, buffer.Streamer(0, buffer.Len()))
+
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
+	// Play
 	go func() {
 		speaker.Play(beep.Seq(loop))
 	}()
+
+	// TODO: Use callbacks for ticks (synchronize)
 	for {
 		c := time.Tick(time.Duration(60000 / *tempo) * time.Millisecond)
-		currentBeat := 0
-		fmt.Printf("\r%s", beatString(currentBeat, *beats, *onSymbol, *offSymbol))
+		var currentBeat int
+		// Ugly!
+		fmt.Printf("\r%s", beatString(currentBeat, *beats, *on, *off))
 		currentBeat++
-		currentBeat %= *beats
 		for range c {
 			go func() {
-				fmt.Printf("\r%s", beatString(currentBeat, *beats, *onSymbol, *offSymbol))
+				fmt.Printf("\r%s", beatString(currentBeat, *beats, *on, *off))
 				currentBeat++
 				currentBeat %= *beats
 			}()
