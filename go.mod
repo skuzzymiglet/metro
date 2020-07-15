@@ -5,7 +5,6 @@ go 1.14
 require (
 	github.com/eiannone/keyboard v0.0.0-20200508000154-caf4b762e807
 	github.com/faiface/beep v1.0.2
-	github.com/gabriel-vasile/mimetype v1.1.1
 	github.com/hajimehoshi/oto v0.6.1 // indirect
 	github.com/markbates/pkger v0.17.0
 	github.com/pkg/errors v0.9.1 // indirect
