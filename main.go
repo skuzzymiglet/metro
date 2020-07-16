@@ -89,7 +89,15 @@ func main() {
 	beats := flag.Int("b", 4, "beats")
 	on := flag.String("o", "🔴", "Symbol for current beat")
 	off := flag.String("O", "⭕", "Symbol for all other beats")
+	startBeat := flag.Int("s", 1, "Beat to start on")
 	flag.Parse()
+
+	// Human-readable to index (for consistency)
+	*startBeat--
+
+	if *startBeat >= *beats {
+		log.Fatal("Starting beat is greater than the numeber of beats")
+	}
 
 	// Listen on keyboard
 	keysEvents, err := keyboard.GetKeys(10)
@@ -140,8 +148,7 @@ func main() {
 	// TODO: Use callbacks for ticks (synchronize)
 	for {
 		c := time.Tick(time.Duration(60000 / *tempo) * time.Millisecond)
-		var currentBeat int
-		// Ugly!
+		currentBeat := *startBeat
 		fmt.Printf("\r%s", beatString(currentBeat, *beats, *on, *off))
 		currentBeat++
 		for range c {
