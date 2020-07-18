@@ -99,24 +99,6 @@ func main() {
 		log.Fatal("Starting beat is greater than the numeber of beats")
 	}
 
-	// Listen on keyboard
-	keysEvents, err := keyboard.GetKeys(10)
-	if err != nil {
-		panic(err)
-	}
-	defer func() {
-		_ = keyboard.Close()
-	}()
-	go func() {
-		for {
-			keyEvent := <-keysEvents
-			if keyEvent.Rune == 'q' {
-				fmt.Print("\r")
-				os.Exit(0)
-			}
-		}
-	}()
-
 	// Read file/embedded
 	reader, err := getFile(*fname)
 	if err != nil {
@@ -137,12 +119,42 @@ func main() {
 	streamer.Close()
 
 	loop := beep.Loop(-1, buffer.Streamer(0, buffer.Len()))
+	runningResampler := beep.ResampleRatio(3, 1, loop)
 
 	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 
+	// Listen on keyboard
+	keysEvents, err := keyboard.GetKeys(10)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = keyboard.Close()
+	}()
+	go func() {
+		for {
+			event := <-keysEvents
+			switch event.Rune {
+			case 'q':
+				fmt.Print("\r")
+				os.Exit(0)
+			case ']':
+				speaker.Lock()
+				runningResampler.SetRatio(runningResampler.Ratio() * float64(*tempo+10) / float64(*tempo))
+				speaker.Unlock()
+				*tempo += 10
+			case '[':
+				speaker.Lock()
+				runningResampler.SetRatio(runningResampler.Ratio() * float64(*tempo-10) / float64(*tempo))
+				speaker.Unlock()
+				*tempo -= 10
+			}
+		}
+	}()
+
 	// Play
 	go func() {
-		speaker.Play(beep.Seq(loop))
+		speaker.Play(beep.Seq(runningResampler))
 	}()
 
 	// TODO: Use callbacks for ticks (synchronize)
